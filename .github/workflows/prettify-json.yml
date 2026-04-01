@@ -1,0 +1,28 @@
+name: Prettify JSON
+
+on:
+  push:
+    paths:
+      - '**.json'
+
+jobs:
+  prettify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Format JSON with jq
+        run: |
+          find . -name "*.json" \
+            -not -path "./.github/*" \
+            -exec sh -c 'jq . "$1" > tmp.json && mv tmp.json "$1"' _ {} \;
+
+      - name: Commit formatted JSON
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: auto-format JSON"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"
