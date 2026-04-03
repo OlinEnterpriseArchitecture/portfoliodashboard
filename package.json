@@ -1,5 +1,5 @@
 {
-  "name": "dashboard",
+  "name": "project-portfolio-dashboard",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,6 +10,19 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.9",
+    "@mui/material": "^7.3.9",
+    "@mui/x-charts": "^8.28.2",
+    "@mui/x-data-grid": "^8.28.2",
+    "@mui/x-data-grid-pro": "^8.28.2",
+    "@mui/x-date-pickers": "^8.27.2",
+    "@mui/x-tree-view": "^8.27.2",
+    "@react-spring/web": "^10.0.3",
+    "dayjs": "^1.11.20",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.7.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
