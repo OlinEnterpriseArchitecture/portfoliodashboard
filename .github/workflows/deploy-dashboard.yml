@@ -3,8 +3,6 @@ name: Deploy Dashboard to GitHub Pages
 on:
   push:
     branches: [main]
-    paths:
-      - 'dashboard/**'
   workflow_dispatch:
 
 permissions:
@@ -30,7 +28,6 @@ jobs:
 
       - name: Install and Build
         run: |
-          cd dashboard
           npm install
           npm run build
 
@@ -38,7 +35,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: './dashboard/dist'
+          path: './dist'
 
   deploy:
     environment:
