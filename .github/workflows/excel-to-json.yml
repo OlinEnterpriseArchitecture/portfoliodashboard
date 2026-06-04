@@ -26,9 +26,11 @@ jobs:
       - name: Convert Excel to JSON
         run: python .github/scripts/excel_to_json.py
 
-      - name: Format JSON with jq
+      - name: Format JSON and inject timestamp
         run: |
-          jq . data/json/All_Projects.json > tmp.json && mv tmp.json data/json/All_Projects.json
+          DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          jq --arg date "$DATE" '. + {_meta: {lastUpdated: $date}}' \
+            data/json/All_Projects.json > tmp.json && mv tmp.json data/json/All_Projects.json
 
       - name: Commit JSON output
         uses: stefanzweifel/git-auto-commit-action@v5
