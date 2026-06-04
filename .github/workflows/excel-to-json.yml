@@ -26,6 +26,10 @@ jobs:
       - name: Convert Excel to JSON
         run: python .github/scripts/excel_to_json.py
 
+      - name: Format JSON with jq
+        run: |
+          jq . data/json/All_Projects.json > tmp.json && mv tmp.json data/json/All_Projects.json
+
       - name: Commit JSON output
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
