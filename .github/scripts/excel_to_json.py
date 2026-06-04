@@ -9,18 +9,12 @@ OUTPUT_FILE = os.path.join(OUTPUT_DIR, "All_Projects.json")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Remove any existing output file before writing fresh
-if os.path.exists(OUTPUT_FILE):
-    os.remove(OUTPUT_FILE)
-    print(f"Deleted existing: {OUTPUT_FILE}")
-
 excel_files = glob.glob(f"{UPLOAD_DIR}/*.xlsx") + glob.glob(f"{UPLOAD_DIR}/*.xls")
 
 if not excel_files:
     print("No Excel files found in data/uploads/")
     exit(0)
 
-# If multiple files exist, last one wins — but typically only one is uploaded at a time
 for excel_path in excel_files:
     xl = pd.ExcelFile(excel_path)
 
