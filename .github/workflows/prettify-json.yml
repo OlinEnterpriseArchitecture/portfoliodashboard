@@ -20,6 +20,15 @@ jobs:
             -not -path "./.github/*" \
             -exec sh -c 'jq . "$1" > tmp.json && mv tmp.json "$1"' _ {} \;
 
+      - name: Inject last updated timestamp into data files
+        run: |
+          DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          for f in data/json/*.json; do
+            [ -f "$f" ] || continue
+            jq --arg date "$DATE" '. + {_meta: {lastUpdated: $date}}' \
+              "$f" > tmp.json && mv tmp.json "$f"
+          done
+
       - name: Commit formatted JSON
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
