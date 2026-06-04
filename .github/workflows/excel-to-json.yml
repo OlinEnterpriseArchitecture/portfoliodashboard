@@ -29,7 +29,7 @@ jobs:
       - name: Commit JSON output
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: convert Excel to JSON"
-          file_pattern: "data/json/*.json"
+          commit_message: "chore: update All_Projects.json"
+          file_pattern: "data/json/All_Projects.json"
           commit_user_name: "github-actions[bot]"
           commit_user_email: "github-actions[bot]@users.noreply.github.com"
