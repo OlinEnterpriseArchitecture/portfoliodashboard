@@ -1,6 +1,6 @@
 {
   "adminPassword": "admin123",
-  "defaultsVersion": 10,
+  "defaultsVersion": 11,
   "rowHeightDefault": 48,
   "pipelineVisibleStages": [
     "closeout",
@@ -18,6 +18,30 @@
     "project-type",
     "budget-snapshot",
     "dept-projects"
+  ],
+  "defaultHiddenGlobalFilters": [
+    {
+      "id": "gf-1784913333553",
+      "fieldKey": "Project Status",
+      "label": "Project Status",
+      "type": "status",
+      "values": [
+        "active"
+      ],
+      "hidden": true
+    }
+  ],
+  "defaultGlobalFilters": [
+    {
+      "id": "gf-1781281075763",
+      "fieldKey": "Portfolio",
+      "label": "Portfolio",
+      "type": "enum",
+      "values": [
+        "CMMC Remediation Portfolio",
+        "Olin 2026"
+      ]
+    }
   ],
   "initialLayouts": {
     "lg": [
@@ -110,17 +134,5 @@
         "static": false
       }
     ]
-  },
-  "defaultGlobalFilters": [
-    {
-      "id": "gf-1781281075763",
-      "fieldKey": "Portfolio",
-      "label": "Portfolio",
-      "type": "enum",
-      "values": [
-        "CMMC Remediation Portfolio",
-        "Olin 2026"
-      ]
-    }
-  ]
+  }
 }

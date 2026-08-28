@@ -44,15 +44,38 @@ import { parseHealth } from '../data/parseUtils';
 import {
   ALL_CARD_IDS, DRILL_KEY_LABELS, NAV_GROUPS, PAGE_META,
 } from './dashboardConstants';
-import { INITIAL_LAYOUTS, loadPrefs } from './dashboardPrefs';
+import { INITIAL_LAYOUTS, loadPrefs, savePrefs } from './dashboardPrefs';
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Dashboard() {
 
   // ── Global filter state ───────────────────────────────────────────────────
-  const [activeGlobalFilters, setActiveGlobalFilters] = useState(
-    () => loadPrefs().defaultGlobalFilters ?? []
-  );
+  // Guard both key names: savePrefs historically used 'hiddenGlobalFilters',
+  // buildDefaultsJson / dashboardDefaults.json uses 'defaultHiddenGlobalFilters'
+  const [activeGlobalFilters, setActiveGlobalFilters] = useState(() => {
+    const prefs = loadPrefs();
+    const hiddenFilters =
+      prefs.defaultHiddenGlobalFilters ??   // JSON-file / new savePrefs path
+      prefs.hiddenGlobalFilters        ??   // legacy localStorage path
+      [];
+    return [
+      ...(prefs.defaultGlobalFilters ?? []),
+      ...hiddenFilters.map(f => ({ ...f, hidden: true })),
+    ];
+  });
+
+  // ── Save filter defaults (called from FilterBar's admin long-press) ────────
+  // Key aligned to 'defaultHiddenGlobalFilters' so savePrefs and buildDefaultsJson
+  // always write the same key — loadPrefs will find it on next load
+  // ── Save filter defaults (called from FilterBar's admin long-press) ────────
+  const handleSaveFilterDefaults = useCallback(({ adminOnlyFilters, regularFilters }) => {
+    const currentPrefs = loadPrefs();   // read current prefs as a plain object
+    savePrefs({
+      ...currentPrefs,
+      defaultGlobalFilters:       regularFilters.map(({ hidden: _hidden, ...f }) => f),
+      defaultHiddenGlobalFilters: adminOnlyFilters.map(({ hidden: _hidden, ...f }) => f),
+    });
+  }, []);
 
   // ── Edit layout hook ──────────────────────────────────────────────────────
   const {
@@ -111,48 +134,20 @@ export default function Dashboard() {
   const handleToggle = () => { if (pinned) { setPinned(false); setHoverOpen(false); } else setPinned(true); };
 
   // ── Grid width tracking ───────────────────────────────────────────────────
-  //
-  // WHY a callback ref instead of useRef + useEffect([active]):
-  //
-  // The old pattern had a three-way race condition:
-  //   1. Navigate away → useEffect([active]) cleanup disconnects the observer,
-  //      then immediately re-creates one on the overview div (still in DOM
-  //      during its exit animation).
-  //   2. AnimatePresence finishes the exit, removes the div from the DOM.
-  //      Some browsers fire a final ResizeObserver entry with width=0 on
-  //      element removal → gridWidth becomes 0.
-  //   3. Navigate back → useEffect([active]) fires, but the overview div
-  //      hasn't mounted yet (AnimatePresence mode="wait" holds it back until
-  //      the coming-soon exit finishes). gridContainerRef.current is null →
-  //      effect returns early → gridWidth stays 0.
-  //   4. Overview div eventually mounts, ref is set, but the effect never
-  //      re-runs → RGL renders with width=0 → all cards collapse to x=0,y=0.
-  //
-  // A callback ref fires at the exact React commit moment the div mounts or
-  // unmounts, regardless of AnimatePresence timing or active state. The
-  // observer is therefore always set up and torn down at the right instant,
-  // and the synchronous el.offsetWidth read gives RGL the correct width
-  // before its first paint.
-  //
   const [gridWidth, setGridWidth] = useState(800);
   const gridRoRef = useRef(null);
 
   const gridContainerRef = useCallback((el) => {
-    // Always clean up the previous observer first.
     if (gridRoRef.current) {
       gridRoRef.current.disconnect();
       gridRoRef.current = null;
     }
     if (!el) return;
-
-    // Synchronous read so RGL has the correct width on its very first render.
     setGridWidth(el.offsetWidth);
-
-    // Watch for future resizes (sidebar pin/unpin, window resize, etc.).
     const ro = new ResizeObserver(([entry]) => setGridWidth(entry.contentRect.width));
     ro.observe(el);
     gridRoRef.current = ro;
-  }, []); // stable — setGridWidth is guaranteed stable by React
+  }, []);
 
   // ── Page-change effects ───────────────────────────────────────────────────
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -215,29 +210,25 @@ export default function Dashboard() {
     );
 
     return globalFilteredProjects.filter(p => {
-      // Pair mode: OR of exact (dept, health) combos — no cross-product
       if (pairKeys.length > 0) {
         const dept = p['IT Department'] || 'Unknown';
         const raw  = parseHealth(p['Overall Health']);
         const hk   = (raw === 'onTrack' || raw === 'atRisk' || raw === 'offTrack') ? raw : 'atRisk';
         if (!pairKeys.some(k => k === `pair-${dept}||${hk}`)) return false;
       }
-      // Depts → OR
       if (deptKeys.length > 0) {
         if (!deptKeys.some(k => p['IT Department'] === k.slice(5))) return false;
       }
-      // Health → OR
       if (healthKeys.length > 0) {
         const raw    = parseHealth(p['Overall Health']);
         const mapped = (raw === 'onTrack' || raw === 'atRisk' || raw === 'offTrack') ? raw : 'atRisk';
         if (!healthKeys.some(k => k.slice(7) === mapped)) return false;
       }
-      // Everything else → AND
       return otherKeys.every(k => DRILL_FILTERS[k]?.(p) ?? true);
     });
   }, [drillDown, globalFilteredProjects]);
 
-  // ── Effective projects (includes MatrixCard row-selection narrowing) ───────
+  // ── Effective projects ────────────────────────────────────────────────────
   const effectiveProjects = useMemo(() => {
     if (selectedProjectIds.size > 0) {
       return filteredProjects.filter(p =>
@@ -255,7 +246,7 @@ export default function Dashboard() {
       return computeKPIs(selected);
     }
     const source = matrixVisibleProjects ?? filteredProjects;
-    return (drillDown.size > 0 || matrixVisibleProjects != null || activeGlobalFilters.length > 0)
+    return (drillDown.size > 0 || matrixVisibleProjects != null || activeGlobalFilters.some(f => f.values.length > 0))
       ? computeKPIs(source)
       : (baseKPI ?? computeKPIs(source));
   }, [drillDown, matrixVisibleProjects, filteredProjects, baseKPI, selectedProjectIds, activeGlobalFilters]);
@@ -336,19 +327,15 @@ export default function Dashboard() {
 
   // ── Card renderer ─────────────────────────────────────────────────────────
   const cardProps   = { c, dark, isEditing, KPI };
-
   const activeDrill = drillDown.size > 0 ? drillDown : null;
-
-  const dimSignal = activeDrill ?? (selectedProjectIds.size > 0 ? selectedProjectIds : null);
+  const dimSignal   = activeDrill ?? (selectedProjectIds.size > 0 ? selectedProjectIds : null);
 
   const renderCardContent = (id) => {
     switch (id) {
       case 'total-projects':
         return <TotalProjectsCard {...cardProps} drillDown={activeDrill} onDrillDown={handleDrillDown} />;
-
       case 'active-alerts':
         return <ActiveAlertsCard {...cardProps} drillDown={dimSignal} onDrillDown={handleDrillDown} />;
-
       case 'pipeline':
         return (
           <PipelineCard
@@ -359,13 +346,10 @@ export default function Dashboard() {
             onDrillDown={handleDrillDown}
           />
         );
-
       case 'project-type':
         return <ProjectTypeCard {...cardProps} drillDown={activeDrill} onDrillDown={handleDrillDown} />;
-
       case 'health':
         return <HealthCard {...cardProps} />;
-
       case 'health-dim':
         return (
           <HealthDimCard
@@ -376,10 +360,8 @@ export default function Dashboard() {
             onViewChange={setHealthDimView}
           />
         );
-
       case 'budget-snapshot':
-        return <BudgetSnapshotCard {...cardProps} budgetData={budgetData} />;
-
+        return <BudgetSnapshotCard {...cardProps} budgetData={budgetData} lastUpdated={budgetLastUpdated}/>;
       case 'matrix':
         return (
           <MatrixCard
@@ -391,7 +373,6 @@ export default function Dashboard() {
             onVisibleProjectsChange={setMatrixVisibleProjects}
           />
         );
-
       case 'dept-projects':
         return (
           <DeptProjectsCard
@@ -402,7 +383,6 @@ export default function Dashboard() {
             onDrillDown={handleDrillDown}
           />
         );
-
       default: return null;
     }
   };
@@ -465,27 +445,16 @@ export default function Dashboard() {
                     {/* Project count */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
                       <span style={{ fontWeight: 700, fontSize: 18, color: c.text }}>Overview</span>
-                      <span style={{
-                        fontSize: 11, color: c.sub, fontWeight: 500,
-                        background: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
-                        padding: '2px 7px', borderRadius: 99,
-                      }}>
-                        {activeGlobalFilters.length > 0
-                          ? `${globalFilteredProjects.length} of ${(allProjects ?? []).length}`
-                          : (allProjects ?? []).length
-                        }{' '}projects
-                      </span>
                     </div>
 
-                    <div style={{ width: 1, height: 18, background: c.border, flexShrink: 0 }} />
-
-                    {/* FilterBar */}
                     <FilterBar
                       dark={dark}
                       c={c}
                       activeFilters={activeGlobalFilters}
                       onFiltersChange={setActiveGlobalFilters}
                       dynamicOptions={dynamicOptions}
+                      onSaveDefaults={handleSaveFilterDefaults}
+                      projects={allProjects ?? []}
                     />
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
@@ -622,13 +591,6 @@ export default function Dashboard() {
                       key={isEditing ? 'rgl-editing' : 'rgl-locked'}
                       width={gridWidth}
                       layouts={displayLayouts}
-                      // ── FIX ───────────────────────────────────────────────
-                      // onLayoutChange fires on ALL internal layout mutations,
-                      // including the vertical recompaction that happens after
-                      // a card is deleted. The old onDragStop/onResizeStop
-                      // approach only fired on explicit user gestures, so
-                      // post-deletion compaction was never written back to
-                      // state — causing stale positions to be saved.
                       onLayoutChange={(layout) => { if (isEditing) setLayouts({ lg: layout }); }}
                       breakpoints={{ lg: 0 }}
                       cols={{ lg: 24 }}

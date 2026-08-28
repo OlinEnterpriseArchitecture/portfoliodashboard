@@ -1,8 +1,97 @@
 import { useRef, useState, useEffect } from 'react';
-import { GripHorizontal } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { GripHorizontal, Info } from 'lucide-react';
 
 export function hColor(s) { return s >= 80 ? '#22c55e' : s >= 65 ? '#10b981' : s >= 50 ? '#f59e0b' : '#ef4444'; }
 export function hLabel(s) { return s >= 80 ? 'Strong' : s >= 65 ? 'Good' : s >= 50 ? 'Fair' : 'At Risk'; }
+
+// ── InfoTooltip ───────────────────────────────────────────────────────────────
+export const InfoTooltip = ({ content, color = '#94a3b8', style = {} }) => {
+  const [show, setShow] = useState(false);
+  const [pos,  setPos]  = useState({ bottom: 0, left: 0 });
+  const ref             = useRef(null);
+
+  const handleEnter = () => {
+    if (ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      setPos({
+        bottom: window.innerHeight - r.top + 6,
+        left:   Math.min(r.left, window.innerWidth - 228),
+      });
+    }
+    setShow(true);
+  };
+
+  return (
+    <div
+      ref={ref}
+      style={{ display: 'inline-flex', alignItems: 'center', ...style }}
+      onMouseEnter={handleEnter}
+      onMouseLeave={() => setShow(false)}
+    >
+      <Info size={13} color={color} style={{ cursor: 'help', opacity: 0.45 }} />
+      {show && createPortal(
+        <div style={{
+          position:      'fixed',
+          bottom:        pos.bottom,
+          left:          pos.left,
+          width:         220,
+          background:    '#1a2235',
+          border:        '1px solid rgba(255,255,255,0.12)',
+          borderRadius:  8,
+          padding:       '9px 11px',
+          zIndex:        99999,
+          boxShadow:     '0 6px 24px rgba(0,0,0,0.45)',
+          pointerEvents: 'none',
+          color:         '#e2e8f0',
+          fontSize:      11,
+          lineHeight:    1.65,
+          fontFamily:    "'Inter',system-ui,sans-serif",
+        }}>
+          {content}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
+
+// ── Shared tooltip content for both health cards ──────────────────────────────
+// Update this text to match your actual scoring formula.
+export const HEALTH_SCORE_INFO = (
+  <div>
+    <div style={{ fontWeight: 700, marginBottom: 5, color: '#f1f5f9', fontSize: 11.5 }}>
+      Portfolio Health Score
+    </div>
+    <div style={{ opacity: 0.85, lineHeight: 1.65, fontSize: 11, marginBottom: 8 }}>
+      Averaged across all projects using Overall Health status only.
+    </div>
+    <div style={{
+      display:       'flex',
+      flexDirection: 'column',
+      gap:           4,
+      marginBottom:  8,
+      fontSize:      11,
+    }}>
+      <span><span style={{ color: '#22c55e', fontWeight: 700 }}>On Track</span>{' = 100 pts'}</span>
+      <span><span style={{ color: '#f59e0b', fontWeight: 700 }}>At Risk</span>{' = 50 pts'}</span>
+      <span><span style={{ color: '#ef4444', fontWeight: 700 }}>Off Track</span>{' = 0 pts'}</span>
+    </div>
+    <div style={{
+      borderTop:  '1px solid rgba(255,255,255,0.1)',
+      paddingTop: 6,
+      display:    'flex',
+      flexWrap:   'wrap',
+      gap:        '3px 10px',
+      fontSize:   10.5,
+    }}>
+      <span><span style={{ color: '#22c55e', fontWeight: 700 }}>80–100</span>{' '}Strong</span>
+      <span><span style={{ color: '#10b981', fontWeight: 700 }}>65–79</span>{' '}Good</span>
+      <span><span style={{ color: '#f59e0b', fontWeight: 700 }}>50–64</span>{' '}Fair</span>
+      <span><span style={{ color: '#ef4444', fontWeight: 700 }}>&lt;50</span>{' '}At Risk</span>
+    </div>
+  </div>
+);
 
 export function CardBody({ children, refW, refH, style = {} }) {
   const outerRef = useRef(null);
@@ -51,11 +140,7 @@ export function CardBody({ children, refW, refH, style = {} }) {
   );
 }
 
-// ── StatusPill ────────────────────────────────────────────────────────────────
-// Dims to ~38% opacity when count is 0, null, or undefined — signals an
-// inactive category after a drill-down filter has been applied.
 export const StatusPill = ({ label, count, color, bg, Icon, dot }) => {
-  // Number(undefined) === NaN, so explicitly treat null/undefined as zero.
   const isZero = count == null || Number(count) === 0;
   return (
     <div style={{
@@ -73,8 +158,6 @@ export const StatusPill = ({ label, count, color, bg, Icon, dot }) => {
   );
 };
 
-// ── SubTile ───────────────────────────────────────────────────────────────────
-// Same null/undefined-aware 0-value dimming as StatusPill.
 export const SubTile = ({ Icon, label, value, subtitle, color, bg }) => {
   const isZero = value == null || Number(value) === 0;
   return (

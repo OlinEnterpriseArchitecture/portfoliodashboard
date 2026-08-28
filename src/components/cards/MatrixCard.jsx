@@ -10,6 +10,33 @@ import { MenuItem, ListItemIcon } from '@mui/material';
 import { Square, CheckSquare } from 'lucide-react';
 import { DragBar } from './shared';
 import { parseHealth } from '../../data/usePortfolioData';
+import {
+  FIELD_PROJECT_ID,
+  FIELD_PROJECT_NAME,
+  FIELD_CURRENT_STAGE,
+  FIELD_PROJECT_MANAGER,
+  FIELD_IT_DEPARTMENT,
+  FIELD_BUSINESS_SPONSOR,
+  FIELD_REQUESTOR,
+  FIELD_IT_PM_REQUESTED,
+  FIELD_CAR_NUMBER,
+  FIELD_OVERALL_HEALTH,
+  FIELD_BUDGET_HEALTH,
+  FIELD_SCHEDULE_HEALTH,
+  FIELD_RESOURCE_HEALTH,
+  FIELD_SCOPE_HEALTH,
+  FIELD_ACTIVE_RISKS,
+  FIELD_ACTIVE_ISSUES,
+  FIELD_ACTIVE_CHANGES,
+  FIELD_START_DATE,
+  FIELD_FINISH_DATE,
+  FIELD_CREATED_ON,
+  FIELD_PLANNED_START_DATE,
+  FIELD_PLANNED_END_DATE,
+  FIELD_PORTFOLIO,
+  FIELD_LOCATIONS,
+  FIELD_GTG_PLAN,
+} from '../../data/fieldConstants';
 
 const HEALTH_META = {
   onTrack:  { label: 'On Track',  color: '#16a34a', bg: 'rgba(22,163,74,0.13)'  },
@@ -51,24 +78,19 @@ const usd = new Intl.NumberFormat('en-US', {
 const fmtUSD = v =>
   v == null || v === '' || v === '—' ? '—' : usd.format(Number(v));
 
+const fmtDate = v => {
+  if (v == null || v === '') return '—';
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? v : d.toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+  });
+};
+
 const DOT_FLEX = 1.0;
 const DOT_MIN  = 72;
 
 const LEFT = { align: 'left', headerAlign: 'left' };
 
-// ── Debounced container-size hook ─────────────────────────────────────────────
-//
-// MUI DataGrid runs its own internal ResizeObserver on its root element.
-// Every time that element's dimensions change it recalculates column widths,
-// row virtualisation, scroll geometry, and more — completely outside React's
-// render cycle, so React.memo cannot block it.
-//
-// The fix mirrors what DeptProjectsCard does for Recharts: give DataGrid an
-// inner wrapper with a *debounced* explicit pixel size.  During a drag the
-// wrapper size is frozen, so DataGrid's ResizeObserver sees zero changes.
-// The grid "snaps" to the new size 150 ms after the handle pauses/releases,
-// which is imperceptible at normal resize speeds.
-//
 const RESIZE_DEBOUNCE_MS = 150;
 
 function useContainerSize(ref) {
@@ -80,7 +102,6 @@ function useContainerSize(ref) {
     const el = ref.current;
     if (!el) return;
 
-    // Synchronous initial read — correct size before first paint.
     setSize({ width: el.offsetWidth, height: el.offsetHeight });
 
     const ro = new ResizeObserver(([entry]) => {
@@ -97,14 +118,11 @@ function useContainerSize(ref) {
       ro.disconnect();
       clearTimeout(timerRef.current);
     };
-  // ref.current is stable after mount — safe to omit
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return size;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 function buildColumns(c) {
   const cell = (color = c.sub) => ({ value }) => (
@@ -127,7 +145,14 @@ function buildColumns(c) {
     );
   };
 
+  const dateCell = ({ value }) => (
+    <span style={{ fontSize: 14, color: c.sub, whiteSpace: 'nowrap' }}>
+      {fmtDate(value)}
+    </span>
+  );
+
   return [
+    // ── Identity ──────────────────────────────────────────────────────────────
     {
       field: 'name', headerName: 'Project',
       flex: 2.5, minWidth: 160,
@@ -142,9 +167,20 @@ function buildColumns(c) {
         </span>
       ),
     },
-    { field: 'stage',        headerName: 'Stage',         flex: 1.3, minWidth: 100, ...LEFT, renderCell: cell() },
-    { field: 'pm',           headerName: 'PM',            flex: 1.6, minWidth: 120, ...LEFT, renderCell: cell() },
-    { field: 'itDepartment', headerName: 'IT Department', flex: 1.6, minWidth: 120, ...LEFT, renderCell: cell() },
+    { field: 'stage', headerName: 'Stage', flex: 1.3, minWidth: 100, ...LEFT, renderCell: cell() },
+
+    // ── People ────────────────────────────────────────────────────────────────
+    { field: 'pm',              headerName: 'PM',               flex: 1.6, minWidth: 120, ...LEFT, renderCell: cell() },
+    { field: 'itDepartment',    headerName: 'IT Department',    flex: 1.6, minWidth: 120, ...LEFT, renderCell: cell() },
+    { field: 'businessSponsor', headerName: 'Business Sponsor', flex: 1.6, minWidth: 130, ...LEFT, renderCell: cell() },
+    { field: 'requestor',       headerName: 'Requestor',        flex: 1.4, minWidth: 110, ...LEFT, renderCell: cell() },
+    { field: 'itPmRequested',   headerName: 'IT PM Requested',  flex: 1.4, minWidth: 120, ...LEFT, renderCell: cell() },
+
+    // ── Classification ────────────────────────────────────────────────────────
+    { field: 'portfolio', headerName: 'Portfolio',          flex: 1.3, minWidth: 100, ...LEFT, renderCell: cell() },
+    { field: 'locations', headerName: 'Locations Impacted', flex: 1.5, minWidth: 130, ...LEFT, renderCell: cell() },
+
+    // ── Health ────────────────────────────────────────────────────────────────
     {
       field: 'overallHealth', headerName: 'Overall',
       flex: 1.1, minWidth: 88,
@@ -180,6 +216,8 @@ function buildColumns(c) {
       sortComparator: healthSortCmp,
       renderCell: ({ value }) => <HealthDot value={value} />,
     },
+
+    // ── Counts ────────────────────────────────────────────────────────────────
     {
       field: 'risks', headerName: 'Risks',
       flex: 0.85, minWidth: 65,
@@ -200,24 +238,29 @@ function buildColumns(c) {
           color: value > 0 ? '#ef4444' : c.sub }}>{value}</span>
       ),
     },
-    { field: 'carNumber',       headerName: 'CAR #',        flex: 1.1, minWidth: 90,  ...LEFT, renderCell: cell() },
-    { field: 'budgetTotal',     headerName: 'Total Budget', flex: 1.4, minWidth: 110, type: 'number', ...LEFT, renderCell: moneyCell() },
-    { field: 'budgetSpent',     headerName: 'Actuals',      flex: 1.3, minWidth: 100, type: 'number', ...LEFT, renderCell: moneyCell() },
-    { field: 'budgetETC',       headerName: 'ETC',          flex: 1.3, minWidth: 100, type: 'number', ...LEFT, renderCell: moneyCell() },
-    { field: 'budgetEAC',       headerName: 'EAC',          flex: 1.3, minWidth: 100, type: 'number', ...LEFT, renderCell: moneyCell() },
-    { field: 'budgetRemaining', headerName: 'Remaining',    flex: 1.3, minWidth: 100, type: 'number', ...LEFT, renderCell: moneyCell() },
     {
-      field: 'budgetVariance', headerName: 'Variance',
-      flex: 1.3, minWidth: 100,
+      field: 'activeChanges', headerName: 'Changes',
+      flex: 0.85, minWidth: 65,
       type: 'number',
       ...LEFT,
-      renderCell: moneyCell((n, v) =>
-        v == null || v === '' || v === '—' ? c.sub
-          : n < 0 ? '#ef4444'
-          : n > 0 ? '#16a34a'
-          : c.sub
+      renderCell: ({ value }) => (
+        <span style={{ fontWeight: 600, fontSize: 14,
+          color: value > 0 ? '#8b5cf6' : c.sub }}>{value}</span>
       ),
     },
+
+    // ── Reference ─────────────────────────────────────────────────────────────
+    { field: 'carNumber', headerName: 'CAR #', flex: 1.1, minWidth: 90, ...LEFT, renderCell: cell() },
+
+    // ── Dates ─────────────────────────────────────────────────────────────────
+    { field: 'createdOn',        headerName: 'Created On',    flex: 1.2, minWidth: 100, ...LEFT, renderCell: dateCell },
+    { field: 'startDate',        headerName: 'Start Date',    flex: 1.2, minWidth: 100, ...LEFT, renderCell: dateCell },
+    { field: 'finishDate',       headerName: 'Finish Date',   flex: 1.2, minWidth: 100, ...LEFT, renderCell: dateCell },
+    { field: 'plannedStartDate', headerName: 'Planned Start', flex: 1.2, minWidth: 105, ...LEFT, renderCell: dateCell },
+    { field: 'plannedEndDate',   headerName: 'Planned End',   flex: 1.2, minWidth: 105, ...LEFT, renderCell: dateCell },
+
+    // ── Governance ────────────────────────────────────────────────────────────
+    { field: 'gtgPlan', headerName: 'GTG Plan', flex: 1.3, minWidth: 100, ...LEFT, renderCell: cell() },
   ];
 }
 
@@ -552,7 +595,7 @@ function CustomColumnMenu({ hideMenu, colDef, onSelectAll, apiRef, drillDown, ..
   );
 }
 
-// ── Shallow-equal helper for the `c` color-config object ──────────────────────
+// ── Shallow-equal helper ──────────────────────────────────────────────────────
 
 function shallowEqualObj(a, b) {
   if (a === b) return true;
@@ -585,59 +628,79 @@ const MatrixCard = memo(function MatrixCard({
   onSelectAll,
   onVisibleProjectsChange,
 }) {
-  const canDrill    = !!onDrillDown && !isEditing;
-  const apiRef      = useGridApiRef();
-  const resizeGuard = useRef(false);
+  const canDrill = !!onDrillDown && !isEditing;
+  const apiRef   = useGridApiRef();
 
-  // ── Debounced container size ───────────────────────────────────────────
-  // The outer div flexes to fill the RGL card cell. We measure it with a
-  // debounced ResizeObserver and give DataGrid an inner wrapper with explicit
-  // pixel dimensions.  During a drag the inner wrapper size is frozen, so
-  // DataGrid's own ResizeObserver sees zero changes and skips its expensive
-  // column-width / virtualisation recalculations entirely.
-  const outerRef                         = useRef(null);
+  // ── [FIX] Only tracks columns the user has explicitly dragged to a new
+  //         width. All other columns keep their `flex` and redistribute
+  //         naturally to fill the card — including after a drill-down
+  //         re-render that would otherwise reset everything to flex values. ──
+  const colWidthsRef = useRef({});
+
+  const outerRef                            = useRef(null);
   const { width: stableW, height: stableH } = useContainerSize(outerRef);
 
+  // ── Row mapping ────────────────────────────────────────────────────────
   const rows = useMemo(() =>
     projects.map((p, i) => ({
-      id:              p['Project ID']               ?? i,
-      name:            p['Name']                     ?? '—',
-      stage:           p['Current Stage Name']       ?? '—',
-      pm:              p['Project Manager']          ?? '—',
-      itDepartment:    p['IT Department']            ?? '—',
-      carNumber:       p['CAR #'] ?? p['CAR Number'] ?? '—',
-      overallHealth:   p['Overall Health']           ?? '',
-      budgetHealth:    p['Budget Health']            ?? '',
-      scheduleHealth:  p['Schedule Health']          ?? '',
-      resourceHealth:  p['Resources Health']         ?? '',
-      scopeHealth:     p['Scope Health']             ?? '',
-      risks:           p['Active Risks']             ?? 0,
-      issues:          p['Active Issues']            ?? 0,
-      budgetTotal:     p['Total Budget']     ?? p['Approved Budget']        ?? null,
-      budgetSpent:     p['Actuals']          ?? p['Budget Spent']           ?? null,
-      budgetETC:       p['ETC']              ?? p['Estimate to Complete']   ?? null,
-      budgetEAC:       p['EAC']              ?? p['Estimate at Completion'] ?? null,
-      budgetRemaining: p['Budget Remaining'] ?? p['Remaining Budget']       ?? null,
-      budgetVariance:  p['Budget Variance']  ?? p['Variance']               ?? null,
+      id:              p[FIELD_PROJECT_ID]          ?? i,
+      name:            p[FIELD_PROJECT_NAME]        ?? '—',
+      stage:           p[FIELD_CURRENT_STAGE]       ?? '—',
+      // People
+      pm:              p[FIELD_PROJECT_MANAGER]     ?? '—',
+      itDepartment:    p[FIELD_IT_DEPARTMENT]       ?? '—',
+      businessSponsor: p[FIELD_BUSINESS_SPONSOR]    ?? '—',
+      requestor:       p[FIELD_REQUESTOR]           ?? '—',
+      itPmRequested:   p[FIELD_IT_PM_REQUESTED]     ?? '—',
+      // Classification
+      portfolio:       p[FIELD_PORTFOLIO]           ?? '—',
+      locations:       p[FIELD_LOCATIONS]           ?? '—',
+      // Health
+      overallHealth:   p[FIELD_OVERALL_HEALTH]      ?? '',
+      budgetHealth:    p[FIELD_BUDGET_HEALTH]        ?? '',
+      scheduleHealth:  p[FIELD_SCHEDULE_HEALTH]     ?? '',
+      resourceHealth:  p[FIELD_RESOURCE_HEALTH]     ?? '',
+      scopeHealth:     p[FIELD_SCOPE_HEALTH]        ?? '',
+      // Counts
+      risks:           p[FIELD_ACTIVE_RISKS]        ?? 0,
+      issues:          p[FIELD_ACTIVE_ISSUES]       ?? 0,
+      activeChanges:   p[FIELD_ACTIVE_CHANGES]      ?? 0,
+      // Reference
+      carNumber:       p[FIELD_CAR_NUMBER]          ?? '—',
+      // Dates
+      createdOn:       p[FIELD_CREATED_ON]          ?? null,
+      startDate:       p[FIELD_START_DATE]          ?? null,
+      finishDate:      p[FIELD_FINISH_DATE]         ?? null,
+      plannedStartDate: p[FIELD_PLANNED_START_DATE] ?? null,
+      plannedEndDate:  p[FIELD_PLANNED_END_DATE]    ?? null,
+      // Governance
+      gtgPlan:         p[FIELD_GTG_PLAN]            ?? '—',
     })),
   [projects]);
 
-  const columns     = useMemo(() => buildColumns(c), [c]);
+  // ── [FIX] Only the explicitly user-resized columns get a pinned pixel
+  //         width injected. Every other column retains its original `flex`
+  //         value so it continues to fill available space automatically. ────
+  const columns = useMemo(() => {
+    const base  = buildColumns(c);
+    const saved = colWidthsRef.current;
+    if (Object.keys(saved).length === 0) return base;
+    return base.map(col =>
+      saved[col.field] != null
+        ? { ...col, width: saved[col.field], flex: undefined }
+        : col
+    );
+  }, [c]);
+
   const sx          = useMemo(() => buildSx(c, dark, canDrill), [c, dark, canDrill]);
   const portalTheme = useMemo(() => buildPortalTheme(c, dark), [c, dark]);
 
-  const onColumnWidthChange = useCallback(({ colDef: changed }) => {
-    if (resizeGuard.current) return;
-    const api = apiRef.current;
-    if (!api) return;
-    resizeGuard.current = true;
-    api.getVisibleColumns().forEach(col => {
-      if (col.field !== changed.field) {
-        api.setColumnWidth(col.field, col.computedWidth ?? col.minWidth ?? 80);
-      }
-    });
-    resizeGuard.current = false;
-  }, [apiRef]);
+  // ── [FIX] Only record the column the user actually dragged. Do NOT lock
+  //         the other columns via api.setColumnWidth — that was what
+  //         previously killed the flex redistribution for all other columns. ─
+  const onColumnWidthChange = useCallback(({ colDef: changed, width: newWidth }) => {
+    colWidthsRef.current[changed.field] = newWidth;
+  }, []);
 
   const handleRowClick = useCallback((params, event) => {
     if (!canDrill) return;
@@ -668,12 +731,6 @@ const MatrixCard = memo(function MatrixCard({
         isEditing={isEditing}
       />
 
-      {/*
-        outerRef measures the available space.
-        The inner div uses the debounced stableW/stableH as explicit pixel
-        dimensions, isolating DataGrid from the 60 fps resize events RGL
-        produces while the drag handle is moving.
-      */}
       <div
         ref={outerRef}
         style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}
@@ -706,13 +763,25 @@ const MatrixCard = memo(function MatrixCard({
               pagination: { paginationModel: { pageSize: 25 } },
               columns: {
                 columnVisibilityModel: {
-                  carNumber:       false,
-                  budgetTotal:     false,
-                  budgetSpent:     false,
-                  budgetETC:       false,
-                  budgetEAC:       false,
-                  budgetRemaining: false,
-                  budgetVariance:  false,
+                  // Reference — hidden by default
+                  carNumber:        false,
+                  // People — hidden by default
+                  businessSponsor:  false,
+                  requestor:        false,
+                  itPmRequested:    false,
+                  // Classification — hidden by default
+                  portfolio:        false,
+                  locations:        false,
+                  // Counts — hidden by default
+                  activeChanges:    false,
+                  // Dates — hidden by default
+                  createdOn:        false,
+                  startDate:        false,
+                  finishDate:       false,
+                  plannedStartDate: false,
+                  plannedEndDate:   false,
+                  // Governance — hidden by default
+                  gtgPlan:          false,
                 },
               },
             }}

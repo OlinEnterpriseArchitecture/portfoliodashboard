@@ -138,40 +138,7 @@ export default function DashboardSidebar({
         ))}
       </nav>
 
-      {/* ── System status ─────────────────────────────────────── */}
-      <div style={{
-        padding: showFull ? '10px 12px' : '10px 0',
-        borderTop: `1px solid ${c.border}`,
-        flexShrink: 0, display: 'flex', alignItems: 'center',
-        justifyContent: showFull ? 'flex-start' : 'center', gap: 8,
-      }}>
-        {showFull ? (
-          <>
-            <div style={{
-              width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-              background: dark ? 'rgba(34,197,94,0.15)' : '#f0fdf4',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Activity size={13} color="#22c55e" />
-            </div>
-            <div>
-              <div style={{
-                fontSize: 11, fontWeight: 600, color: c.text,
-                display: 'flex', alignItems: 'center', gap: 5,
-              }}>
-                <span style={{
-                  width: 6, height: 6, borderRadius: '50%',
-                  background: '#22c55e', display: 'inline-block',
-                }} />
-                System Online
-              </div>
-              <div style={{ fontSize: 10, color: c.sub }}>PMO Database · Live</div>
-            </div>
-          </>
-        ) : (
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} />
-        )}
-      </div>
+      {/* ── Footer ────────────────────────────────────────────── */}
     </div>
   );
 }

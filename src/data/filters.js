@@ -1,27 +1,24 @@
-import { parseHealth, parseStage, parseType } from './parseUtils';
+import { parseHealth, parseStage, parseType, parseStatus } from './parseUtils';
+
+export const NULL_SENTINEL = '__null__';
 
 export const DRILL_FILTERS = {
-  // ── Health status (bare keys — used by HealthCard, TotalProjectsCard, etc.) ─
   onTrack:  p => parseHealth(p['Overall Health']) === 'onTrack',
   atRisk:   p => parseHealth(p['Overall Health']) === 'atRisk',
   offTrack: p => parseHealth(p['Overall Health']) === 'offTrack',
 
-  // ── Health status (prefixed keys — used by DeptProjectsCard segment clicks) ─
   'health-onTrack':  p => parseHealth(p['Overall Health']) === 'onTrack',
   'health-atRisk':   p => parseHealth(p['Overall Health']) === 'atRisk',
   'health-offTrack': p => parseHealth(p['Overall Health']) === 'offTrack',
 
-  // ── Alerts ─────────────────────────────────────────────────────────────────
   openRisks:  p => (p['Active Risks']  ?? 0) > 0,
   openIssues: p => (p['Active Issues'] ?? 0) > 0,
 
-  // ── Pipeline stages ────────────────────────────────────────────────────────
   'stage-intake':    p => parseStage(p['Current Stage Name']) === 'intake',
   'stage-steerCo':   p => parseStage(p['Current Stage Name']) === 'steerCo',
   'stage-execution': p => parseStage(p['Current Stage Name']) === 'execution',
   'stage-closeout':  p => parseStage(p['Current Stage Name']) === 'closeout',
 
-  // ── Project type ───────────────────────────────────────────────────────────
   implementation: p => parseType(p['Project Type']) === 'implementation',
   discovery:      p => parseType(p['Project Type']) === 'discovery',
 };
@@ -40,7 +37,6 @@ export const DRILL_LABELS = {
   discovery:         'Discovery',
 };
 
-// ── Global filter definitions ──────────────────────────────────────────────
 export const HEALTH_OPTIONS = [
   { value: 'onTrack',  label: 'On Track'  },
   { value: 'atRisk',   label: 'At Risk'   },
@@ -59,7 +55,15 @@ export const TYPE_OPTIONS = [
   { value: 'discovery',      label: 'Discovery'      },
 ];
 
+export const STATUS_OPTIONS = [
+  { value: 'active',    label: 'Active'    },
+  { value: 'closed',    label: 'Closed'    },
+  { value: 'onHold',    label: 'On Hold'   },
+  { value: 'cancelled', label: 'Cancelled' },
+];
+
 export const GLOBAL_FILTER_DEFS = [
+  { fieldKey: 'Project Status',     label: 'Project Status',   type: 'status' },
   { fieldKey: 'Overall Health',     label: 'Overall Health',   type: 'health' },
   { fieldKey: 'Budget Health',      label: 'Budget Health',    type: 'health' },
   { fieldKey: 'Schedule Health',    label: 'Schedule Health',  type: 'health' },
@@ -78,10 +82,27 @@ export function applyGlobalFilters(projects, activeFilters) {
   return projects.filter(p =>
     activeFilters.every(f => {
       if (!f.values || f.values.length === 0) return true;
-      if (f.type === 'health') return f.values.includes(parseHealth(p[f.fieldKey]));
-      if (f.type === 'stage')  return f.values.includes(parseStage(p[f.fieldKey]));
-      if (f.type === 'type')   return f.values.includes(parseType(p[f.fieldKey]));
-      return f.values.includes(p[f.fieldKey]);
+
+      const rawIsNull = p[f.fieldKey] == null || p[f.fieldKey] === '';
+
+      if (f.type === 'health') {
+        const parsed = parseHealth(p[f.fieldKey]);
+        return f.values.some(v => v === NULL_SENTINEL ? rawIsNull : v === parsed);
+      }
+      if (f.type === 'stage') {
+        const parsed = parseStage(p[f.fieldKey]);
+        return f.values.some(v => v === NULL_SENTINEL ? rawIsNull : v === parsed);
+      }
+      if (f.type === 'type') {
+        const parsed = parseType(p[f.fieldKey]);
+        return f.values.some(v => v === NULL_SENTINEL ? rawIsNull : v === parsed);
+      }
+      if (f.type === 'status') {
+        const parsed = parseStatus(p[f.fieldKey]);
+        return f.values.some(v => v === NULL_SENTINEL ? rawIsNull : v === parsed);
+      }
+      // enum
+      return f.values.some(v => v === NULL_SENTINEL ? rawIsNull : v === p[f.fieldKey]);
     })
   );
 }

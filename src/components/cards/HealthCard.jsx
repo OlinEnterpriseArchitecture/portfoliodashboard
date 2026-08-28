@@ -1,11 +1,11 @@
-import { CardBody, DragBar, hColor, hLabel } from './shared';
+import { CardBody, DragBar, hColor, hLabel, InfoTooltip, HEALTH_SCORE_INFO } from './shared';
 
 export default function HealthCard({ c, isEditing, KPI }) {
   const hc = hColor(KPI.healthScore);
   const hd = Math.round(KPI.healthScore / 10);
 
   return (
-    <>
+    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       <DragBar title="Portfolio Health" textColor={c.sub} borderColor={c.border} isEditing={isEditing} />
       <CardBody refW={140} refH={120} style={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
@@ -24,6 +24,11 @@ export default function HealthCard({ c, isEditing, KPI }) {
           </span>
         </div>
       </CardBody>
-    </>
+
+      {/* Info icon — outside CardBody so it's unaffected by zoom */}
+      <div style={{ position: 'absolute', bottom: 6, left: 6, zIndex: 10 }}>
+        <InfoTooltip content={HEALTH_SCORE_INFO} color={c.sub} />
+      </div>
+    </div>
   );
 }

@@ -17,13 +17,18 @@ const fmt = (raw) => {
 
 const pctFmt = (ratio) => `${Math.round(ratio * 100)}%`;
 
-// Calibrated to the actual natural height of two content sections at base font sizes
-const BASE_H = 130;
+// ── The natural content height at scale = 1 ──────────────────────────────────
+// 2 × (label 18px + gap 5px + bar 6px + gap 5px + actuals 15px) = 2 × 49 = 98
+// 1 divider section (paddingTop 8 + paddingBottom 8) = 16
+// timestamp block (paddingTop 5 + line 11) = 16
+// outer gap between children ≈ 4 × 3 = 12   → total ≈ 142
+const REF_H   = 142;
+const VERT_PAD = 8;
 
 function BudgetBar({ actualsRatio, totalRatio, color, dark, barH }) {
   return (
     <div style={{
-      height: barH, borderRadius: barH / 2,
+      height: barH, borderRadius: barH / 2, flexShrink: 0,
       background: dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
       overflow: 'hidden', position: 'relative',
     }}>
@@ -43,25 +48,36 @@ function BudgetBar({ actualsRatio, totalRatio, color, dark, barH }) {
   );
 }
 
-export default function BudgetSnapshotCard({ c, dark, isEditing, budgetData }) {
+export default function BudgetSnapshotCard({ c, dark, isEditing, budgetData, lastUpdated }) {
   const containerRef = useRef(null);
-  const [dims, setDims] = useState({ w: 400, h: BASE_H });
+  const [dims, setDims] = useState({ w: 400, h: REF_H + VERT_PAD * 2 });
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver(([entry]) => {
-      setDims({ w: entry.contentRect.width, h: entry.contentRect.height });
+      const h = entry.borderBoxSize?.[0]?.blockSize  ?? entry.contentRect.height;
+      const w = entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width;
+      setDims({ w, h });
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
-  // Both fonts/bar AND spacing scale together, so content always fills ~90–95% of the card
-  const scale = Math.min(Math.max(dims.h / BASE_H, 0.55), 1.8);
+  // ── Same formula as PipelineCard ─────────────────────────────────────────
+  const scale = Math.min(Math.max((dims.h - VERT_PAD * 2) / REF_H, 0.4), 2.0);
   const fs = (base) => Math.round(base * scale * 10) / 10;
   const sp = (base) => Math.round(base * scale);
-  const barH = Math.max(3, sp(6));
+  const barH = Math.max(2, sp(6));
+
+  const fmtDate = (val) => {
+    if (!val) return null;
+    try {
+      return new Date(val).toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+      });
+    } catch { return null; }
+  };
 
   if (!budgetData) {
     return (
@@ -78,6 +94,7 @@ export default function BudgetSnapshotCard({ c, dark, isEditing, budgetData }) {
   }
 
   const { capital, expense } = budgetData;
+  const dateStr = fmtDate(lastUpdated);
 
   const sections = [
     {
@@ -108,78 +125,102 @@ export default function BudgetSnapshotCard({ c, dark, isEditing, budgetData }) {
     <>
       <DragBar title="Budget Snapshot" textColor={c.sub} borderColor={c.border} isEditing={isEditing} />
 
+      {/* ── Measured container — same shape as PipelineCard ── */}
       <div
         ref={containerRef}
         style={{
           flex: 1,
+          position: 'relative',
           overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          padding: `0 ${sp(14)}px`,
         }}
       >
-        {sections.map((s, i) => (
-          <div
-            key={s.label}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: sp(5),
-              paddingTop:    i === 0 ? 0 : sp(11),
-              paddingBottom: i < sections.length - 1 ? sp(11) : 0,
-              borderBottom:  i < sections.length - 1 ? `1px solid ${c.border}` : 'none',
-            }}
-          >
-            {/* Label | estimate / approved | % badge */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: sp(6) }}>
-              <span style={{ fontSize: fs(12), fontWeight: 600, color: c.text, flex: 1 }}>
-                {s.label}
-              </span>
-              <span style={{ fontSize: fs(10.5), color: c.sub, whiteSpace: 'nowrap' }}>
-                {fmt(s.ytdPlusFcst)}&thinsp;/&thinsp;{fmt(s.approved)}
-              </span>
-              <span style={{
-                fontSize: fs(10), fontWeight: 700,
-                color: s.color,
-                background: dark ? `${s.color}22` : `${s.color}15`,
-                border: `1.5px solid ${s.color}55`,
-                borderRadius: sp(5),
-                padding: `1px ${sp(6)}px`,
-                whiteSpace: 'nowrap',
-              }}>
-                {pctFmt(s.utilization)}
-              </span>
-            </div>
-
-            {/* Bar — width fills container naturally, height scales with card */}
-            <BudgetBar
-              actualsRatio={s.actualsRatio}
-              totalRatio={s.utilization}
-              color={s.color}
-              dark={dark}
-              barH={barH}
-            />
-
-            {/* Actuals · Forecast · Remaining */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: sp(6) }}>
-              <div style={{
-                fontSize: fs(10), flex: 1,
-                display: 'flex', alignItems: 'center', gap: sp(3), flexWrap: 'wrap',
-              }}>
-                <span style={{ color: s.color, fontWeight: 600 }}>Actuals</span>
-                <span style={{ color: c.sub }}>{fmt(s.actuals)}</span>
-                <span style={{ color: c.sub, opacity: 0.45 }}>·</span>
-                <span style={{ color: `${s.color}bb`, fontWeight: 600 }}>Forecast</span>
-                <span style={{ color: c.sub }}>{fmt(s.forecast)}</span>
+        {/* ── Absolutely-positioned content layer ── */}
+        {/* inset keeps it off the edges; justifyContent:center vertically centers */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: `${VERT_PAD}px ${sp(14)}px`,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            gap: sp(4),
+          }}
+        >
+          {sections.map((s, i) => (
+            <div
+              key={s.label}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: sp(5),
+                paddingTop:    i === 0 ? 0 : sp(8),
+                paddingBottom: i < sections.length - 1 ? sp(8) : 0,
+                borderBottom:  i < sections.length - 1 ? `1px solid ${c.border}` : 'none',
+              }}
+            >
+              {/* Label | YTD+Forecast / Approved | % badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: sp(6) }}>
+                <span style={{ fontSize: fs(12), fontWeight: 600, color: c.text, flex: 1 }}>
+                  {s.label}
+                </span>
+                <span style={{ fontSize: fs(10.5), color: c.sub, whiteSpace: 'nowrap' }}>
+                  {fmt(s.ytdPlusFcst)}&thinsp;/&thinsp;{fmt(s.approved)}
+                </span>
+                <span style={{
+                  fontSize: fs(10), fontWeight: 700,
+                  color: s.color,
+                  background: dark ? `${s.color}22` : `${s.color}15`,
+                  border: `1.5px solid ${s.color}55`,
+                  borderRadius: sp(5),
+                  padding: `1px ${sp(6)}px`,
+                  whiteSpace: 'nowrap',
+                }}>
+                  {pctFmt(s.utilization)}
+                </span>
               </div>
-              <div style={{ fontSize: fs(10), whiteSpace: 'nowrap', color: c.sub }}>
-                {fmt(s.remaining)}{' '}
-                <span style={{ opacity: 0.6 }}>remaining</span>
+
+              <BudgetBar
+                actualsRatio={s.actualsRatio}
+                totalRatio={s.utilization}
+                color={s.color}
+                dark={dark}
+                barH={barH}
+              />
+
+              {/* Actuals · Forecast  ·  Remaining */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: sp(6) }}>
+                <div style={{
+                  fontSize: fs(10), flex: 1,
+                  display: 'flex', alignItems: 'center', gap: sp(3), flexWrap: 'nowrap',
+                }}>
+                  <span style={{ color: s.color, fontWeight: 600 }}>Actuals</span>
+                  <span style={{ color: c.sub }}>{fmt(s.actuals)}</span>
+                  <span style={{ color: c.sub, opacity: 0.4 }}>·</span>
+                  <span style={{ color: `${s.color}bb`, fontWeight: 600 }}>Forecast</span>
+                  <span style={{ color: c.sub }}>{fmt(s.forecast)}</span>
+                </div>
+                <div style={{ fontSize: fs(10), whiteSpace: 'nowrap', color: c.sub }}>
+                  {fmt(s.remaining)}{' '}
+                  <span style={{ opacity: 0.6 }}>remaining</span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+
+          {/* ── Timestamp ── */}
+          {dateStr && (
+            <div style={{
+              paddingTop: sp(5),
+              borderTop:  `1px solid ${c.border}`,
+              fontSize:   fs(8.5),
+              fontStyle:  'italic',
+              color:      c.sub,
+              opacity:    0.5,
+            }}>
+              Last updated {dateStr}
+            </div>
+          )}
+        </div>
       </div>
     </>
   );

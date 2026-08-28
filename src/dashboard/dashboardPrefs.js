@@ -30,8 +30,20 @@ export const PREF_DEFAULTS = {
   healthDimView:         DASHBOARD_DEFAULTS.healthDimView,
   visibleCardIds:        DASHBOARD_DEFAULTS.visibleCardIds,
   defaultsVersion:       DASHBOARD_DEFAULTS.defaultsVersion,
-  defaultGlobalFilters:  DASHBOARD_DEFAULTS.defaultGlobalFilters ?? [],
+  defaultGlobalFilters:  DASHBOARD_DEFAULTS.defaultGlobalFilters        ?? [],
+  hiddenGlobalFilters:   DASHBOARD_DEFAULTS.defaultHiddenGlobalFilters  ?? [],
 };
+
+// ── Build a ready-to-download dashboardDefaults.json object ──────────────────
+
+export function buildDefaultsJson({ defaultGlobalFilters, defaultHiddenGlobalFilters } = {}) {
+  return {
+    ...DASHBOARD_DEFAULTS,
+    defaultGlobalFilters:       defaultGlobalFilters       ?? DASHBOARD_DEFAULTS.defaultGlobalFilters       ?? [],
+    defaultHiddenGlobalFilters: defaultHiddenGlobalFilters ?? DASHBOARD_DEFAULTS.defaultHiddenGlobalFilters ?? [],
+    defaultsVersion:            (DASHBOARD_DEFAULTS.defaultsVersion ?? 0) + 1,
+  };
+}
 
 // ── Persistence functions ─────────────────────────────────────────────────────
 
@@ -39,14 +51,14 @@ export function loadAdminDefaults() {
   try {
     const raw = localStorage.getItem(ADMIN_KEY);
     if (raw) {
-      const parsed   = JSON.parse(raw);
+      const parsed   = JSON.parse(raw);                          // parse once
       const localVer = parsed.defaultsVersion ?? 0;
       const jsonVer  = DASHBOARD_DEFAULTS.defaultsVersion ?? 0;
       if (jsonVer > localVer) {
         localStorage.removeItem(ADMIN_KEY);
         return null;
       }
-      return { ...PREF_DEFAULTS, ...JSON.parse(raw) };
+      return { ...PREF_DEFAULTS, ...parsed };
     }
   } catch {}
   return null;
@@ -71,20 +83,30 @@ export function loadPrefs() {
   try {
     const raw = localStorage.getItem(PREF_KEY);
     if (raw) {
-      const parsed    = { ...PREF_DEFAULTS, ...JSON.parse(raw) };
+      const stored    = JSON.parse(raw);
       const adminDefs = loadAdminDefaults();
       const adminVer  = adminDefs?.defaultsVersion ?? DASHBOARD_DEFAULTS.defaultsVersion;
-      const userVer   = parsed.defaultsVersion     ?? 0;
+      const userVer   = stored.defaultsVersion ?? 0;
+
       if (userVer < adminVer) {
         clearPrefs();
         return adminDefs ?? { ...PREF_DEFAULTS };
       }
+
+      const parsed = { ...PREF_DEFAULTS, ...stored };
+
+      // ── Filter defaults are authoritative from the JSON config or saved admin
+      // overrides — never from user-level PREF_KEY data, which may be stale,
+      // empty, or pre-date the filter configuration being added to the JSON.
+      const filterSrc = adminDefs ?? PREF_DEFAULTS;
+      parsed.defaultGlobalFilters = filterSrc.defaultGlobalFilters ?? [];
+      parsed.hiddenGlobalFilters  = filterSrc.hiddenGlobalFilters  ?? [];
+
       return parsed;
     }
   } catch {}
   const adminDefs = loadAdminDefaults();
-  if (adminDefs) return adminDefs;
-  return { ...PREF_DEFAULTS };
+  return adminDefs ?? { ...PREF_DEFAULTS };
 }
 
 export function savePrefs(p) {

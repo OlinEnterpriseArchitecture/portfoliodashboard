@@ -5,6 +5,10 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { DragBar } from './shared';
 import { parseHealth } from '../../data/parseUtils';
+import {
+  FIELD_IT_DEPARTMENT,
+  FIELD_OVERALL_HEALTH,
+} from '../../data/fieldConstants';
 
 const SEGMENTS = [
   { key: 'onTrack',  label: 'On Track',  color: '#10b981' },
@@ -16,7 +20,7 @@ const PAD                = { t: 4, r: 2, b: 6, l: 2 };
 const RESIZE_DEBOUNCE_MS = 150;
 const DIM_OPACITY        = 0.15;
 const BAR_RADIUS         = 3;
-const PAIR_SEP           = '||';   // ← separates dept from segKey inside a pair key
+const PAIR_SEP           = '||';
 
 function roundedTopPath(x, y, w, h, r) {
   if (h <= 0 || w <= 0) return '';
@@ -170,12 +174,10 @@ const DeptProjectsCard = memo(function DeptProjectsCard({
   );
 
   // ── Parse pair keys ────────────────────────────────────────────────────
-  // Bar-segment clicks emit `pair-{dept}||{segKey}` compound keys so that
-  // each (dept, health) selection is self-contained with no cross-product.
   const activePairs = useMemo(() => {
     const s = new Set();
     drillArr.forEach(k => {
-      if (k.startsWith('pair-')) s.add(k.slice(5)); // stores "dept||segKey"
+      if (k.startsWith('pair-')) s.add(k.slice(5));
     });
     return s;
   }, [drillArr]);
@@ -213,8 +215,8 @@ const DeptProjectsCard = memo(function DeptProjectsCard({
     const source = allProjects ?? projects;
     const map = {};
     source.forEach(p => {
-      const dept   = p['IT Department'] || 'Unknown';
-      const health = parseHealth(p['Overall Health']);
+      const dept   = p[FIELD_IT_DEPARTMENT] || 'Unknown';
+      const health = parseHealth(p[FIELD_OVERALL_HEALTH]);
       if (!map[dept]) map[dept] = { dept, onTrack: 0, atRisk: 0, offTrack: 0 };
       if (health === 'onTrack' || health === 'atRisk' || health === 'offTrack') {
         map[dept][health]++;
@@ -256,18 +258,17 @@ const DeptProjectsCard = memo(function DeptProjectsCard({
   // ── Dept + health highlights ───────────────────────────────────────────
   const visibleDepts = useMemo(() => {
     const s = new Set();
-    projects.forEach(p => s.add(p['IT Department'] || 'Unknown'));
+    projects.forEach(p => s.add(p[FIELD_IT_DEPARTMENT] || 'Unknown'));
     return s;
   }, [projects]);
 
   const visibleHealthSegs = useMemo(() => {
-    // In pair mode, SegShape checks pairs directly — no cross-product needed.
     if (isPairDrillActive) return null;
     if (isHealthDrillActive) return activeHealthKeys;
     if (!isExternallyFiltered && !hasExternalDrillKeys) return null;
     const s = new Set();
     projects.forEach(p => {
-      const h      = parseHealth(p['Overall Health']);
+      const h      = parseHealth(p[FIELD_OVERALL_HEALTH]);
       const mapped = (h === 'onTrack' || h === 'atRisk' || h === 'offTrack') ? h : 'atRisk';
       s.add(mapped);
     });
@@ -288,8 +289,8 @@ const DeptProjectsCard = memo(function DeptProjectsCard({
   const filteredCounts = useMemo(() => {
     const map = {};
     projects.forEach(p => {
-      const dept   = p['IT Department'] || 'Unknown';
-      const health = parseHealth(p['Overall Health']);
+      const dept   = p[FIELD_IT_DEPARTMENT] || 'Unknown';
+      const health = parseHealth(p[FIELD_OVERALL_HEALTH]);
       const key    = (health === 'onTrack' || health === 'atRisk' || health === 'offTrack')
         ? health : 'atRisk';
       if (!map[dept]) map[dept] = { onTrack: 0, atRisk: 0, offTrack: 0 };
@@ -314,7 +315,7 @@ const DeptProjectsCard = memo(function DeptProjectsCard({
   shapeRenderRef.current = {
     isDimmingActive, highlightedDepts, visibleHealthSegs,
     filteredCounts, snapshotCountsMap,
-    activePairs,        // ← pair mode: shapes check exact (dept, segKey) pairs
+    activePairs,
     canDrill,
     pendingClickRef,
   };
@@ -354,13 +355,10 @@ const DeptProjectsCard = memo(function DeptProjectsCard({
 
         if (!da) return fullBar(1);
 
-        // ── Pair mode: each (dept, segKey) is checked as an atomic pair ────
-        // This is the key fix — no cross-product between dept and health sets.
         if (ap.size > 0) {
           const pairId = `${dept}${PAIR_SEP}${seg.key}`;
           if (!ap.has(pairId)) return fullBar(DIM_OPACITY);
 
-          // Pair is active — show with proportional fill
           const filtered = fc[dept]?.[seg.key] ?? 0;
           const total    = sc[dept]?.[seg.key] ?? 0;
           const fraction = total > 0 ? Math.min(1, filtered / total) : 1;
@@ -389,7 +387,6 @@ const DeptProjectsCard = memo(function DeptProjectsCard({
           );
         }
 
-        // ── Legacy dept + health cross-product mode (tick / legend clicks) ─
         const deptOk   = hd.has(dept);
         const healthOk = !vhs || vhs.has(seg.key);
 
@@ -430,7 +427,7 @@ const DeptProjectsCard = memo(function DeptProjectsCard({
   // ── Live refs ──────────────────────────────────────────────────────────
   const activePairsRef        = useRef(activePairs);
   activePairsRef.current      = activePairs;
-  const drillArrRef           = useRef(drillArr);   // raw array for isOnlyThis check
+  const drillArrRef           = useRef(drillArr);
   drillArrRef.current         = drillArr;
   const activeDeptRef         = useRef(activeDepts);
   activeDeptRef.current       = activeDepts;
@@ -481,21 +478,17 @@ const DeptProjectsCard = memo(function DeptProjectsCard({
         const pairKey = `pair-${d}${PAIR_SEP}${sk}`;
 
         if (m) {
-          // Ctrl+click: toggle only this pair — never touches any other pair.
           fire(pairKey, true);
         } else {
-          // Non-ctrl: if drillDown is exactly this one pair key, deselect it.
-          // Otherwise, replace everything with just this pair.
           const isOnlyThis = raw.length === 1 && raw[0] === pairKey;
           if (isOnlyThis) {
-            fire(pairKey, true);   // toggle off → drillDown becomes empty
+            fire(pairKey, true);
           } else {
-            fire(pairKey, false);  // clear all, then select only this pair
+            fire(pairKey, false);
           }
         }
 
       } else {
-        // type === 'area': background column click, no specific health segment
         const { dept: d, multi: m } = click;
         if (!m && ads.has(d) && ahk.size > 0) {
           ahk.forEach(hk => fire('health-' + hk, true));
