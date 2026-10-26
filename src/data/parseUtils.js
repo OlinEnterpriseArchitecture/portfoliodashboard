@@ -46,6 +46,12 @@ export function parseStatus(str) {
   return 'unknown';
 }
 
+export function parseState(val) {
+  if (val === 0 || val === '0') return 'active';
+  if (val === 1 || val === '1') return 'inactive';
+  return 'unknown';
+}
+
 export const HEALTH_SCORE = { onTrack: 100, atRisk: 50, offTrack: 0, unknown: 50 };
 
 export const HEALTH_DIMS = [

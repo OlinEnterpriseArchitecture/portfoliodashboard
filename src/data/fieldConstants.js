@@ -18,6 +18,7 @@ export const FIELD_LOCATIONS              = 'Locations Impacted';
 export const FIELD_AI_COE_STATUS          = 'AI COE Status';
 export const FIELD_PROJECT_TYPE           = 'Project Type';
 export const FIELD_PROJECT_STATUS         = 'Project Status';
+export const FIELD_PROJECT_STATE          = 'Project State';
 
 // ── Health ────────────────────────────────────────────────────────────────────
 export const FIELD_OVERALL_HEALTH         = 'Overall Health';

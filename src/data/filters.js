@@ -1,4 +1,4 @@
-import { parseHealth, parseStage, parseType, parseStatus } from './parseUtils';
+import { parseHealth, parseStage, parseType, parseStatus, parseState } from './parseUtils';
 
 export const NULL_SENTINEL = '__null__';
 
@@ -44,10 +44,10 @@ export const HEALTH_OPTIONS = [
 ];
 
 export const STAGE_OPTIONS = [
-  { value: 'intake',    label: 'Intake'      },
-  { value: 'steerCo',  label: 'IT Steer Co' },
-  { value: 'execution', label: 'Execution'  },
-  { value: 'closeout',  label: 'Close Out'  },
+  { value: 'intake',     label: 'Intake'      },
+  { value: 'steerCo',   label: 'IT Steer Co' },
+  { value: 'execution', label: 'Execution'   },
+  { value: 'closeout',  label: 'Close Out'   },
 ];
 
 export const TYPE_OPTIONS = [
@@ -62,7 +62,13 @@ export const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
+export const STATE_OPTIONS = [
+  { value: 'active',   label: 'Active'   },
+  { value: 'inactive', label: 'Inactive' },
+];
+
 export const GLOBAL_FILTER_DEFS = [
+  { fieldKey: 'Project State',      label: 'Project State',    type: 'state'  },
   { fieldKey: 'Project Status',     label: 'Project Status',   type: 'status' },
   { fieldKey: 'Overall Health',     label: 'Overall Health',   type: 'health' },
   { fieldKey: 'Budget Health',      label: 'Budget Health',    type: 'health' },
@@ -99,6 +105,10 @@ export function applyGlobalFilters(projects, activeFilters) {
       }
       if (f.type === 'status') {
         const parsed = parseStatus(p[f.fieldKey]);
+        return f.values.some(v => v === NULL_SENTINEL ? rawIsNull : v === parsed);
+      }
+      if (f.type === 'state') {
+        const parsed = parseState(p[f.fieldKey]);
         return f.values.some(v => v === NULL_SENTINEL ? rawIsNull : v === parsed);
       }
       // enum
