@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Plus, X, ChevronRight, ChevronLeft, Search, Download, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GLOBAL_FILTER_DEFS, HEALTH_OPTIONS, STAGE_OPTIONS, TYPE_OPTIONS, STATUS_OPTIONS, NULL_SENTINEL } from '../data/filters';
-import { parseHealth, parseStage, parseType, parseStatus } from '../data/parseUtils';
+import { GLOBAL_FILTER_DEFS, HEALTH_OPTIONS, STAGE_OPTIONS, TYPE_OPTIONS, STATUS_OPTIONS, STATE_OPTIONS, NULL_SENTINEL } from '../data/filters';
+import { parseHealth, parseStage, parseType, parseStatus, parseState } from '../data/parseUtils';
 import { buildDefaultsJson, downloadJson } from '../dashboard/dashboardPrefs';
 
 const LONG_PRESS_MS = 750;
@@ -212,6 +212,7 @@ export default function FilterBar({ dark, c, activeFilters, onFiltersChange, dyn
     else if (def.type === 'stage')  baseOptions = STAGE_OPTIONS;
     else if (def.type === 'type')   baseOptions = TYPE_OPTIONS;
     else if (def.type === 'status') baseOptions = STATUS_OPTIONS;
+    else if (def.type === 'state')  baseOptions = STATE_OPTIONS;
     else baseOptions = (dynamicOptions[def.fieldKey] ?? []).map(v => ({ value: v, label: v }));
 
     return hasNull
@@ -225,6 +226,7 @@ export default function FilterBar({ dark, c, activeFilters, onFiltersChange, dyn
     if (type === 'stage')  return STAGE_OPTIONS.find(o => o.value === v)?.label ?? v;
     if (type === 'type')   return TYPE_OPTIONS.find(o => o.value === v)?.label ?? v;
     if (type === 'status') return STATUS_OPTIONS.find(o => o.value === v)?.label ?? v;
+    if (type === 'state')  return STATE_OPTIONS.find(o => o.value === v)?.label ?? v;
     return v;
   };
 
