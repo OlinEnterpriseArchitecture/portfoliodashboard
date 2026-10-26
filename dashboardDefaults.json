@@ -1,0 +1,148 @@
+{
+  "adminPassword": "admin123",
+  "defaultsVersion": 12,
+  "rowHeightDefault": 48,
+  "pipelineVisibleStages": [
+    "closeout",
+    "execution",
+    "steerCo",
+    "intake"
+  ],
+  "healthDimView": "dim",
+  "visibleCardIds": [
+    "total-projects",
+    "active-alerts",
+    "matrix",
+    "pipeline",
+    "health",
+    "project-type",
+    "budget-snapshot",
+    "dept-projects"
+  ],
+  "defaultHiddenGlobalFilters": [
+    {
+      "id": "gf-1784913333553",
+      "fieldKey": "Project Status",
+      "label": "Project Status",
+      "type": "status",
+      "values": [
+        "active"
+      ],
+      "hidden": true
+    },
+    {
+      "id": "gf-1793026632427",
+      "fieldKey": "Project State",
+      "label": "Project State",
+      "type": "state",
+      "values": [
+        "active"
+      ],
+      "hidden": true
+    }
+  ],
+  "defaultGlobalFilters": [
+    {
+      "id": "gf-1781281075763",
+      "fieldKey": "Portfolio",
+      "label": "Portfolio",
+      "type": "enum",
+      "values": [
+        "CMMC Remediation Portfolio",
+        "Olin 2026"
+      ]
+    }
+  ],
+  "initialLayouts": {
+    "lg": [
+      {
+        "i": "total-projects",
+        "x": 1,
+        "y": 0,
+        "w": 7,
+        "h": 5,
+        "minW": 1,
+        "minH": 1,
+        "moved": false,
+        "static": false
+      },
+      {
+        "i": "active-alerts",
+        "x": 8,
+        "y": 0,
+        "w": 3,
+        "h": 5,
+        "minW": 1,
+        "minH": 1,
+        "moved": false,
+        "static": false
+      },
+      {
+        "i": "pipeline",
+        "x": 11,
+        "y": 0,
+        "w": 4,
+        "h": 5,
+        "minW": 1,
+        "minH": 1,
+        "moved": false,
+        "static": false
+      },
+      {
+        "i": "project-type",
+        "x": 15,
+        "y": 0,
+        "w": 5,
+        "h": 5,
+        "minW": 1,
+        "minH": 1,
+        "moved": false,
+        "static": false
+      },
+      {
+        "i": "health",
+        "x": 20,
+        "y": 0,
+        "w": 3,
+        "h": 5,
+        "minW": 1,
+        "minH": 1,
+        "moved": false,
+        "static": false
+      },
+      {
+        "i": "budget-snapshot",
+        "x": 12,
+        "y": 5,
+        "w": 11,
+        "h": 6,
+        "minW": 1,
+        "minH": 1,
+        "moved": false,
+        "static": false
+      },
+      {
+        "i": "matrix",
+        "x": 1,
+        "y": 11,
+        "w": 22,
+        "h": 9,
+        "minW": 1,
+        "minH": 1,
+        "moved": false,
+        "static": false
+      },
+      {
+        "i": "dept-projects",
+        "x": 1,
+        "y": 5,
+        "w": 11,
+        "h": 6,
+        "minW": 1,
+        "minH": 1,
+        "moved": false,
+        "static": false
+      }
+    ]
+  }
+}
