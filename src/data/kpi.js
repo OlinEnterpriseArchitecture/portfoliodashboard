@@ -28,7 +28,7 @@ export function computeKPIs(projects = []) {
     projects.length,
   );
 
-  return {
+  return { 
     total: projects.length,
     onTrack, atRisk, offTrack,
     openRisks, openIssues,
